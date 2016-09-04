@@ -1,6 +1,8 @@
 ---
 layout: post
 title: Colorado passes traversed by unmaintained roads:
+date:   2016-03-16 13:43:21 -0600
+categories: regex location
 ---
 
 https://en.wikipedia.org/wiki/List_of_mountain_passes_in_Colorado

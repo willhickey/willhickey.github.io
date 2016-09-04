@@ -1,7 +1,7 @@
 ---
 layout: post
-title: Colorado passes traversed by unmaintained roads:
-date:   2016-03-16 13:43:21 -0600
+title: "Colorado passes traversed by unmaintained roads"
+date:   2016-09-03 23:00:00 -0600
 categories: regex location
 ---
 

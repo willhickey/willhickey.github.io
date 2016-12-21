@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Honda Civic snow plow. Prototype 1."
-date:   2016-12-21 16:26:00 -0600
+date:   2016-12-17 16:26:00 -0600
 categories: civic projects engineering
 ---
 

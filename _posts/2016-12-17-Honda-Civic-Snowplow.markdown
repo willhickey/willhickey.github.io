@@ -34,7 +34,6 @@ At this point the plow is firmly attached to the car but can still pivot on the 
 and chain prevent the blade from pivoting, but provide a simple way to change the angle of the plow 
 so it can be used as a simple pusher or angled as a side plow.
 
-Results:
 I'm happy with the results considering the minimal design, but a number of improvements are needed.
 Here's [a video of the plow in action](https://www.youtube.com/watch?v=7oPFvrKj050).
 
@@ -51,6 +50,6 @@ And my current plans to remedy these problems:
 
 1. Cover the front surface of the 2x10 with flashing which will hopefully help the snow slide along
 blade so the snow can be used at an angle for longer runs.
-2. Add a rubber cutting edge. I'm hoping to copy [this design](http://woodchuckcanuck.com/2014/01/19/mooseplow-redneck-cutting-edge/])
+2. Add a rubber cutting edge. I'm hoping to copy [this design](http://woodchuckcanuck.com/2014/01/19/mooseplow-redneck-cutting-edge/)
 which makes use of an old tire.
 3. Add small mechanical lifters like [these ones](https://www.youtube.com/watch?v=C0AHrpLKCZc)

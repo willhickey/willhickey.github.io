@@ -17,7 +17,7 @@ took 2 hours to assemble:
 
 Parts:
 
-* 8' 2x10
+* 6' 2x10
 * (2) 1' 2x4
 * (4) 3" angle brackets
 * (2) hook screws
@@ -26,18 +26,17 @@ Parts:
 * (4) 5/16 x 4" bolts (with nuts, and 2 washers)
 * Plus a vehicle with a ball hitch
 
-The 2x4s are carved out so they will form a tight clamshell around the ball hitch (which is inverted in my 
-setup). Then they're bolted together around the ball. The middle of the 2x10 is attached to the other
-end of the 2x4s using the angle brackets and remaining bolts
+The 2x4s are carved out (using a router or spade bit) so they will form a tight clamshell around the 
+ball hitch (which is inverted in my setup). Then they're bolted together around the ball. The middle 
+of the 2x10 is attached to the other end of the 2x4s using the angle brackets and remaining bolts
 
-At this point the plow is firmly attached to the car but can still pivot on the ball. The screw hooks and chain
-prevent the blade from pivoting, but provide a simple way to change the angle of the plow so it can 
-be used as a simple pusher or angled as a side plow.
+At this point the plow is firmly attached to the car but can still pivot on the ball. The screw hooks 
+and chain prevent the blade from pivoting, but provide a simple way to change the angle of the plow 
+so it can be used as a simple pusher or angled as a side plow.
 
 Results:
 I'm happy with the results considering the minimal design, but a number of improvements are needed.
-Here's a video of the plow in action:
-https://www.youtube.com/watch?v=7oPFvrKj050
+Here's [a video of the plow in action](https://www.youtube.com/watch?v=7oPFvrKj050).
 
 There are three main problems:
 

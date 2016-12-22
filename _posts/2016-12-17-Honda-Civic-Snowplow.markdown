@@ -49,7 +49,7 @@ instead of scraping it.
 And my current plans to remedy these problems:
 
 1. Cover the front surface of the 2x10 with flashing which will hopefully help the snow slide along
-blade so the snow can be used at an angle for longer runs.
+blade so the plow can be used at an angle for longer runs.
 2. Add a rubber cutting edge. I'm hoping to copy [this design](http://woodchuckcanuck.com/2014/01/19/mooseplow-redneck-cutting-edge/)
 which makes use of an old tire.
 3. Add small mechanical lifters like [these ones](https://www.youtube.com/watch?v=C0AHrpLKCZc)

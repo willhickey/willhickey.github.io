@@ -16,6 +16,7 @@ took 2 hours to assemble:
 [![Snowplow](/assets/images/snowplow01.jpg)](/assets/images/snowplow01.jpg)
 
 Parts:
+
 * 8' 2x10
 * (2) 1' 2x4
 * (4) 3" angle brackets
@@ -39,6 +40,7 @@ Here's a video of the plow in action:
 https://www.youtube.com/watch?v=7oPFvrKj050
 
 There are three main problems:
+
 1. The 2x10 isn't slippery enough to shed snow to the side when the plow is angled. Setting the plow 
 straight and using it as a pusher works but limits the length of a plowing run as the snow piles up
 in front of the blade.
@@ -47,6 +49,7 @@ instead of scraping it.
 3. Because the plow doesn't lift it drags snow with it when I drive forward
 
 And my current plans to remedy these problems:
+
 1. Cover the front surface of the 2x10 with flashing which will hopefully help the snow slide along
 blade so the snow can be used at an angle for longer runs.
 2. Add a rubber cutting edge. I'm hoping to copy [this design](http://woodchuckcanuck.com/2014/01/19/mooseplow-redneck-cutting-edge/])

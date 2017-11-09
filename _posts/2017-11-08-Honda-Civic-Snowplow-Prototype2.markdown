@@ -5,53 +5,36 @@ date:   2017-11-08 20:48:00 -0600
 categories: civic projects engineering
 ---
 
-This is a continuation of [Prototype 1]({% post_url 2016-12-17-Honda-Civic-Snowplow %})
+[Prototype 1]({% post_url 2016-12-17-Honda-Civic-Snowplow %}) of the Civic Snow Plow worked but with
+some significant limitations, as discussed in the first post. Prototype 2 set out to remedy those limitations.
 
-My city only plows arterial streets. Snows on neighborhood streets is quickly packed down by car 
-traffic. This snowpack is easy enough to drive on but inconvenient to bike on and takes a while
-to melt. So I decided to build a snowplow for my Honda Civic to (hopefully) plow streets from my 
-house out to the nearest arterial streets (2 and 3 blocks away, respectively).
+To that end I made the following changes:
+* Added angled extensions to the top and bottom.
+* Added a rubber cutting edge to the bottom.
+* Faced the plow with roofing metal. 
 
-Here's my first attempt. It cost $30 in parts (plus a Honda Civic, which I had lying around) and 
-took 2 hours to assemble:
+[![Snowplow](/assets/images/snowplow02.jpg)](/assets/images/snowplow02.jpg)
 
-[![Snowplow](/assets/images/snowplow01.jpg)](/assets/images/snowplow01.jpg)
+Here are the angled extensions. The bottom of the blade is to the right. The bottom extension serves
+primarily to angle the cutting edge. The top extension makes the plow slightly taller and is designed
+to kick snow forward off the blade, so it doesn't spill over the top.
 
-Parts:
+[![Snowplow](/assets/images/snowplow03.jpg)](/assets/images/snowplow03.jpg)
 
-* 6' 2x10
-* (2) 1' 2x4
-* (4) 3" angle brackets
-* (2) hook screws
-* 10' chain
-* (8) 5/16 x 2" bolts (with nuts)
-* (4) 5/16 x 4" bolts (with nuts, and 2 washers)
-* Plus a vehicle with a ball hitch
+Next the rubber cutting edge. I had planned to use the tread of a car tire but cutting one with a circular
+saw proved too loud and smokey. For the sake of my neighbors I opted to use part of an old rubber mat
+that I could cut with a utility knife. After cutting 2" strips I screwed them onto the plow face, 
+protruding about 1/2" below the bottom edge.
 
-The 2x4s are carved out (using a router or spade bit) so they will form a tight clamshell around the 
-ball hitch (which is inverted in my setup). Then they're bolted together around the ball. The middle 
-of the 2x10 is attached to the other end of the 2x4s using the angle brackets and remaining bolts
+[![Snowplow](/assets/images/snowplow04.jpg)](/assets/images/snowplow04.jpg)
 
-At this point the plow is firmly attached to the car but can still pivot on the ball. The screw hooks 
-and chain prevent the blade from pivoting, but provide a simple way to change the angle of the plow 
-so it can be used as a simple pusher or angled as a side plow.
+Once the rubber edge was installed I clad the face of the plow with roofing metal. Any hard smooth material 
+would have worked, but I had spare roofing metal leftover from another job.
 
-I'm happy with the results considering the minimal design, but a number of improvements are needed.
-Here's [a video of the plow in action](https://www.youtube.com/watch?v=5Nkh2XzjIhw).
+These improvements made a marked difference. The cutting edge does a much better job of cutting through packed
+snow, and the smooth metal clears snow off to the side. Here's [a video of prototype 2 in action](https://www.youtube.com/watch?v=5Nkh2XzjIhw).
 
-There are three main problems:
+Sadly later that night I broke the hitch tongue. Connecting the plow to the trailer hitch with a wooden tongue 
+was simple and easy but clearly not strong enough to withstand the rigors of plowing. 
 
-1. The 2x10 isn't slippery enough to shed snow to the side when the plow is angled. Setting the plow 
-straight and using it as a pusher works but limits the length of a plowing run as the snow piles up
-in front of the blade.
-2. The bottom of the plow is just the rounded edge of the 2x10. This tends to skate over packed snow 
-instead of scraping it.
-3. Because the plow doesn't lift it drags snow with it when I drive forward
-
-And my current plans to remedy these problems:
-
-1. Cover the front surface of the 2x10 with flashing which will hopefully help the snow slide along
-blade so the plow can be used at an angle for longer runs.
-2. Add a rubber cutting edge. I'm hoping to copy [this design](http://woodchuckcanuck.com/2014/01/19/mooseplow-redneck-cutting-edge/)
-which makes use of an old tire.
-3. Add small mechanical lifters like [these ones](https://www.youtube.com/watch?v=C0AHrpLKCZc)
+Prototype #3 is in the works, now with upgraded chain hooks and a better hitch tongue.

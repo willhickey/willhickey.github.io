@@ -1,11 +1,11 @@
 ---
 layout: post
 title: "Honda Civic snow plow. Prototype 2."
-date:   2016-11-08 20:48:00 -0600
+date:   2017-11-08 20:48:00 -0600
 categories: civic projects engineering
 ---
 
-This is a continuation of [Prototype 1](%% post_url 2016-12-17-Honda-Civic-Snowplow %)
+This is a continuation of [Prototype 1]({% post_url 2016-12-17-Honda-Civic-Snowplow %})
 
 My city only plows arterial streets. Snows on neighborhood streets is quickly packed down by car 
 traffic. This snowpack is easy enough to drive on but inconvenient to bike on and takes a while

@@ -12,7 +12,7 @@ To that end I made the following changes:
 * Added angled extensions to the top and bottom.
 * Added a rubber cutting edge to the bottom.
 * Faced the plow with roofing metal. 
-
+[![Snowplow](/assets/images/snowplow01.jpg)](/assets/images/snowplow01.jpg)
 [![Snowplow](/assets/images/snowplow02.jpg)](/assets/images/snowplow02.jpg)
 
 Here are the angled extensions. The bottom of the blade is to the right. The bottom extension serves

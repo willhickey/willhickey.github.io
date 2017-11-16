@@ -36,5 +36,6 @@ snow, and the smooth metal clears snow off to the side. Here's [a video of proto
 
 Sadly later that night I broke the hitch tongue. Connecting the plow to the trailer hitch with a wooden tongue 
 was simple and easy but clearly not strong enough to withstand the rigors of plowing. 
+[![Broken hitch](/assets/images/snowplow05.jpg)](/assets/images/snowplow05.jpg)
 
 Prototype #3 is in the works, now with upgraded chain hooks and a better hitch tongue.

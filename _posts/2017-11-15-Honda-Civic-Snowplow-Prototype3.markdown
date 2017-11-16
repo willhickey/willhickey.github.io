@@ -25,6 +25,6 @@ I started with an $18 hitch from walmart, then welded angle brackets onto three 
 instead of pulling, there's a unique challenge that ball hitches don't handle. When pushing there's nothing to keep the plow from rotating underneath
 the car (which is exactly what broke the original wooden hitch). To resolve that problem I welded angle iron onto the sides of the hitch, extending forward
 past the ball. Then welded two more lengths of angle iron on top running perpendicular to the hitch. If the plow gets caught on a road crack and starts to 
-rotate under the car those lengths if angle iron will press into the ball mount and hopefully keep the hitch from destroying itself.
+rotate under the car those lengths of angle iron will press into the ball mount and hopefully keep the hitch from destroying itself.
 
 There's no snow in the forecast here in Fort Collins, but I'll post a video of the plow in action as soon as I can.

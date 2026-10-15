@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beacon map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  html, body, #map { height: 100%; margin: 0; }
+  #legend {
+    position: absolute; z-index: 1000; top: 10px; right: 10px;
+    background: rgba(255,255,255,.92); padding: 8px 10px; border-radius: 6px;
+    font: 13px system-ui, sans-serif; max-width: 260px;
+  }
+  #legend div { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  #legend i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  #legend .err { color: #b00020; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="legend"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Usage: index.html?ids=abc123,def456   (or ?id=abc&id=def)
+const API_URL = "https://us-central1-beaconviewer.cloudfunctions.net/beacon";
+const POLL_MS = 10000;
+const COLORS = ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#008080", "#9a6324", "#800000"];
+
+const params = new URLSearchParams(location.search);
+const ids = [...new Set(
+  [...params.getAll("id"), ...(params.get("ids") || "").split(",")]
+    .map(s => s.trim()).filter(Boolean)
+)];
+
+const map = L.map("map").setView([39.74, -104.99], 12);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+}).addTo(map);
+
+const legend = document.getElementById("legend");
+if (!ids.length) legend.textContent = "Add beacon IDs to the URL: ?ids=ID1,ID2";
+
+const beacons = ids.map((id, i) => {
+  const color = COLORS[i % COLORS.length];
+  const row = document.createElement("div");
+  row.innerHTML = `<i style="background:${color}"></i><span></span>`;
+  legend.appendChild(row);
+  return {
+    id, color, points: [], // points: [ts, lat, lng]
+    line: L.polyline([], { color, weight: 4 }).addTo(map),
+    marker: L.circleMarker([0, 0], { radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 }),
+    label: row.querySelector("span"),
+    failures: 0,
+  };
+});
+
+let fitted = false;
+
+async function refresh(b) {
+  const last = b.points.length ? b.points[b.points.length - 1][0] : null;
+  const url = `${API_URL}?id=${encodeURIComponent(b.id)}` + (last !== null ? `&min_ts=${last}` : "");
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.status);
+    const data = await res.json();
+    if (last !== null) {
+      // Replace our tail from `last` onward so partial batches never cause gaps or duplicates.
+      while (b.points.length && b.points[b.points.length - 1][0] >= last) b.points.pop();
+    }
+    b.points.push(...data.points);
+    b.failures = 0;
+    render(b, data);
+  } catch (e) {
+    b.failures++;
+    b.label.className = "err";
+    b.label.textContent = `${b.id}: ${e.message}`;
+  }
+}
+
+function render(b, data) {
+  if (!b.points.length) { b.label.textContent = `${b.id}: no points yet`; return; }
+  const latlngs = b.points.map(p => [p[1], p[2]]);
+  b.line.setLatLngs(latlngs);
+  const head = latlngs[latlngs.length - 1];
+  b.marker.setLatLng(head);
+  if (!map.hasLayer(b.marker)) b.marker.addTo(map);
+
+  const km = data.stats && data.stats.distance != null ? (data.stats.distance / 1000).toFixed(2) + " km" : "";
+  const age = data.update_time ? Math.max(0, Math.round(Date.now() / 1000 - data.update_time)) + "s ago" : "";
+  b.label.className = "";
+  b.label.textContent = [b.id, km, age].filter(Boolean).join(" · ");
+
+  if (!fitted) {
+    const all = beacons.flatMap(x => x.points.map(p => [p[1], p[2]]));
+    if (all.length) { map.fitBounds(all, { padding: [40, 40], maxZoom: 16 }); fitted = true; }
+  }
+}
+
+async function tick() {
+  await Promise.all(beacons.map(refresh));
+  setTimeout(tick, POLL_MS);
+}
+if (beacons.length) tick();
+</script>
+</body>
+</html>

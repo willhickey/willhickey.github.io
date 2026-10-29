@@ -15,23 +15,64 @@
   #legend div { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
   #legend i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
   #legend .err { color: #b00020; }
+  #legend span { flex: 1; }
+  #legend .rm {
+    flex: none; border: 0; background: none; color: #777; cursor: pointer;
+    font: 16px/1 system-ui, sans-serif; padding: 0 2px;
+  }
+  #legend .rm:hover { color: #b00020; }
+  #add {
+    position: absolute; z-index: 1000; bottom: 24px; left: 10px;
+    font: 13px system-ui, sans-serif;
+  }
+  #add button, #add input {
+    font: inherit; padding: 5px 8px; border: 1px solid #aaa; border-radius: 4px; background: #fff;
+  }
+  #add button { cursor: pointer; }
+  #add-toggle { box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  #add form {
+    background: rgba(255,255,255,.95); padding: 8px; border-radius: 6px; margin-bottom: 6px;
+    display: flex; flex-direction: column; gap: 6px; width: 230px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  }
+  #add form[hidden] { display: none; }
+  #add-error { color: #b00020; min-height: 1em; }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="legend"></div>
+<div id="add">
+  <form id="add-form" hidden autocomplete="off">
+    <input id="add-name" placeholder="Name (optional)" aria-label="Name">
+    <input id="add-id" placeholder="Beacon ID or link" aria-label="Beacon ID" required>
+    <button type="submit">Add beacon</button>
+    <div id="add-error"></div>
+  </form>
+  <button id="add-toggle" type="button" aria-expanded="false">+ Add beacon</button>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// Usage: index.html?ids=abc123,def456   (or ?id=abc&id=def)
+// Usage: index.html?ids=abc123:Alice,def456:Bob   (names optional; or ?id=abc:Alice&id=def)
 const API_URL = "https://us-central1-beaconviewer.cloudfunctions.net/beacon";
 const POLL_MS = 10000;
+const STATUS = {1: "Recording", 2: "Paused automatically", 3: "Paused manually", 5: "Saved", 6: "Discarded"};
+const FINAL_STATUSES = [5, 6]; // Saved, Discarded: stop polling, keep the route on the map
 const COLORS = ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#008080", "#9a6324", "#800000"];
 
-const params = new URLSearchParams(location.search);
-const ids = [...new Set(
-  [...params.getAll("id"), ...(params.get("ids") || "").split(",")]
-    .map(s => s.trim()).filter(Boolean)
-)];
+// Each entry is "ID" or "ID:Name". Parse the raw query string so a %2C inside a name
+// isn't mistaken for the comma that separates entries.
+const decode = s => { try { return decodeURIComponent(s.replace(/\+/g, " ")); } catch { return s; } };
+const entries = location.search.slice(1).split("&").flatMap(kv => {
+  const [k, v = ""] = kv.split(/=(.*)/s);
+  return k === "id" || k === "ids" ? v.split(",") : [];
+});
+const names = new Map();
+for (const entry of entries) {
+  const [id, ...rest] = decode(entry).split(":");
+  const name = rest.join(":").trim();
+  if (id.trim() && !names.has(id.trim())) names.set(id.trim(), name);
+}
+const ids = [...names.keys()];
 
 const map = L.map("map").setView([39.74, -104.99], 12);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -39,20 +80,57 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 const legend = document.getElementById("legend");
-if (!ids.length) legend.textContent = "Add beacon IDs to the URL: ?ids=ID1,ID2";
+if (!ids.length) legend.textContent = "Add beacon IDs to the URL: ?ids=ID1:Name1,ID2:Name2";
 
 const beacons = ids.map((id, i) => {
   const color = COLORS[i % COLORS.length];
   const row = document.createElement("div");
-  row.innerHTML = `<i style="background:${color}"></i><span></span>`;
+  row.innerHTML = `<i style="background:${color}"></i><span></span>` +
+    `<button class="rm" type="button" title="Remove" aria-label="Remove beacon">\u00d7</button>`;
+  row.querySelector(".rm").addEventListener("click", () => {
+    const remaining = new Map(names);
+    remaining.delete(id);
+    goTo(remaining);
+  });
   legend.appendChild(row);
   return {
-    id, color, points: [], // points: [ts, lat, lng]
+    id, name: names.get(id) || id, color, points: [], // points: [ts, lat, lng]
     line: L.polyline([], { color, weight: 4 }).addTo(map),
     marker: L.circleMarker([0, 0], { radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 }),
     label: row.querySelector("span"),
     failures: 0,
+    done: false, // set once a final status is received
   };
+});
+
+// Reload the page with the given Map(id -> name) as its beacon list.
+function goTo(beaconNames) {
+  const value = [...beaconNames].map(([i, n]) => i + (n ? ":" + encodeURIComponent(n) : "")).join(",");
+  location.search = value ? "?ids=" + value : "";
+}
+
+// "Add beacon" panel: add the new entry to the URL's ids list and reload.
+const addForm = document.getElementById("add-form");
+const addToggle = document.getElementById("add-toggle");
+const addError = document.getElementById("add-error");
+L.DomEvent.disableClickPropagation(document.getElementById("add"));
+
+addToggle.addEventListener("click", () => {
+  addForm.hidden = !addForm.hidden;
+  addToggle.setAttribute("aria-expanded", String(!addForm.hidden));
+  if (!addForm.hidden) document.getElementById("add-id").focus();
+});
+
+addForm.addEventListener("submit", e => {
+  e.preventDefault();
+  // Accept a pasted beacon link as well as a bare ID.
+  const id = document.getElementById("add-id").value.trim().replace(/[?#].*$/, "").replace(/\/+$/, "").split("/").pop();
+  const name = document.getElementById("add-name").value.trim();
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
+    addError.textContent = "Beacon ID may only contain letters, numbers, - and _.";
+    return;
+  }
+  goTo(new Map(names).set(id, name || names.get(id) || ""));
 });
 
 let fitted = false;
@@ -70,16 +148,26 @@ async function refresh(b) {
     }
     b.points.push(...data.points);
     b.failures = 0;
+    b.done = FINAL_STATUSES.includes(data.status);
     render(b, data);
   } catch (e) {
     b.failures++;
     b.label.className = "err";
-    b.label.textContent = `${b.id}: ${e.message}`;
+    b.label.textContent = `${b.name}: ${e.message}`;
   }
 }
 
+function statusText(code) {
+  if (code == null) return "";
+  return STATUS[code] || `Status ${code}`;
+}
+
 function render(b, data) {
-  if (!b.points.length) { b.label.textContent = `${b.id}: no points yet`; return; }
+  if (!b.points.length) {
+    b.label.className = "";
+    b.label.textContent = [b.name, statusText(data.status), "no points yet"].filter(Boolean).join(" · ");
+    return;
+  }
   const latlngs = b.points.map(p => [p[1], p[2]]);
   b.line.setLatLngs(latlngs);
   const head = latlngs[latlngs.length - 1];
@@ -89,7 +177,7 @@ function render(b, data) {
   const km = data.stats && data.stats.distance != null ? (data.stats.distance / 1000).toFixed(2) + " km" : "";
   const age = data.update_time ? Math.max(0, Math.round(Date.now() / 1000 - data.update_time)) + "s ago" : "";
   b.label.className = "";
-  b.label.textContent = [b.id, km, age].filter(Boolean).join(" · ");
+  b.label.textContent = [b.name, statusText(data.status), km, age].filter(Boolean).join(" · ");
 
   if (!fitted) {
     const all = beacons.flatMap(x => x.points.map(p => [p[1], p[2]]));
@@ -98,8 +186,8 @@ function render(b, data) {
 }
 
 async function tick() {
-  await Promise.all(beacons.map(refresh));
-  setTimeout(tick, POLL_MS);
+  await Promise.all(beacons.filter(b => !b.done).map(refresh));
+  if (beacons.some(b => !b.done)) setTimeout(tick, POLL_MS);
 }
 if (beacons.length) tick();
 </script>

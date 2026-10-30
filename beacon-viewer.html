@@ -29,13 +29,23 @@
     font: inherit; padding: 5px 8px; border: 1px solid #aaa; border-radius: 4px; background: #fff;
   }
   #add button { cursor: pointer; }
-  #add-toggle { box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  #add .btns { display: flex; gap: 6px; }
+  #add .btns button { box-shadow: 0 1px 4px rgba(0,0,0,.3); }
   #add form {
     background: rgba(255,255,255,.95); padding: 8px; border-radius: 6px; margin-bottom: 6px;
     display: flex; flex-direction: column; gap: 6px; width: 230px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
   }
   #add form[hidden] { display: none; }
   #add-error { color: #b00020; min-height: 1em; }
+  #elev {
+    position: absolute; z-index: 1000; left: 0; right: 0; bottom: 0; height: 180px;
+    background: rgba(255,255,255,.96); box-shadow: 0 -1px 4px rgba(0,0,0,.3);
+  }
+  #elev[hidden] { display: none; }
+  #elev canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+  #elev-msg { position: absolute; top: 4px; right: 12px; font: 12px system-ui, sans-serif; color: #b00020; }
+  .elev-open #add { bottom: 204px; }
+  .elev-open .leaflet-bottom { bottom: 180px; }
 </style>
 </head>
 <body>
@@ -48,7 +58,14 @@
     <button type="submit">Add beacon</button>
     <div id="add-error"></div>
   </form>
-  <button id="add-toggle" type="button" aria-expanded="false">+ Add beacon</button>
+  <div class="btns">
+    <button id="add-toggle" type="button" aria-expanded="false">+ Add beacon</button>
+    <button id="elev-toggle" type="button" aria-expanded="false">Elevation</button>
+  </div>
+</div>
+<div id="elev" hidden>
+  <canvas id="elev-canvas"></canvas>
+  <div id="elev-msg"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -100,6 +117,8 @@ const beacons = ids.map((id, i) => {
     label: row.querySelector("span"),
     failures: 0,
     done: false, // set once a final status is received
+    samples: [], // elevation profile sample points: {d (metres along route), lat, lng, key}
+    hover: null, // map marker shown while hovering the elevation chart
   };
 });
 
@@ -183,7 +202,227 @@ function render(b, data) {
     const all = beacons.flatMap(x => x.points.map(p => [p[1], p[2]]));
     if (all.length) { map.fitBounds(all, { padding: [40, 40], maxZoom: 16 }); fitted = true; }
   }
+  updateElevation(b);
 }
+
+// ---- Elevation profile ----
+// Elevations come from Open-Meteo straight from the browser. Route points are thinned to one
+// sample every SAMPLE_SPACING_M metres, looked up in batches, and cached (in memory and in
+// localStorage) by coordinates rounded to 4 decimals (~11 m), so each coordinate is only
+// ever fetched once. Lookups only run while the panel is open.
+const ELEV_URL = "https://api.open-meteo.com/v1/elevation";
+const ELEV_BATCH = 100;          // coordinates per request
+const SAMPLE_SPACING_M = 100;
+const ELEV_CACHE_KEY = "beacon-elev-v1";
+const ELEV_CACHE_MAX = 50000;    // entries kept in localStorage (oldest dropped first)
+const ELEV_RETRY_MS = 30000;
+
+const elevPanel = document.getElementById("elev");
+const elevToggle = document.getElementById("elev-toggle");
+const elevMsg = document.getElementById("elev-msg");
+const canvas = document.getElementById("elev-canvas");
+const ctx = canvas.getContext("2d");
+let elevOpen = false;
+let hoverX = null; // pointer x over the chart, in CSS pixels
+
+const elevCache = new Map(); // "lat,lng" -> metres (null = unknown)
+try {
+  for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(ELEV_CACHE_KEY) || "{}"))) elevCache.set(k, v);
+} catch { /* storage unavailable or corrupt: start empty */ }
+
+let saveTimer = null;
+function saveElevCache() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      while (elevCache.size > ELEV_CACHE_MAX) elevCache.delete(elevCache.keys().next().value);
+      localStorage.setItem(ELEV_CACHE_KEY, JSON.stringify(Object.fromEntries(elevCache)));
+    } catch { /* quota exceeded or storage unavailable: keep the in-memory cache only */ }
+  }, 1000);
+}
+
+function distM(a, b) { // haversine distance in metres between [lat, lng] pairs
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (b[0] - a[0]) * rad, dLng = (b[1] - a[1]) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function buildSamples(b) {
+  const out = [];
+  let d = 0, lastD = -Infinity, prev = null;
+  b.points.forEach((p, i) => {
+    const cur = [p[1], p[2]];
+    if (prev) d += distM(prev, cur);
+    prev = cur;
+    // Only include the final point once the route is finished, otherwise every poll would
+    // add a new lookup for the moving head.
+    const isEnd = b.done && i === b.points.length - 1;
+    if (d - lastD >= SAMPLE_SPACING_M || isEnd) {
+      out.push({ d, lat: p[1], lng: p[2], key: `${p[1].toFixed(4)},${p[2].toFixed(4)}` });
+      lastD = d;
+    }
+  });
+  b.samples = out;
+}
+
+let pumping = false, retryTimer = null;
+async function pumpElevations() {
+  if (pumping) return;
+  pumping = true;
+  clearTimeout(retryTimer);
+  try {
+    for (;;) {
+      const missing = [...new Set(beacons.flatMap(b => b.samples.map(s => s.key)).filter(k => !elevCache.has(k)))];
+      if (!missing.length) break;
+      const batch = missing.slice(0, ELEV_BATCH);
+      const lats = batch.map(k => k.split(",")[0]).join(",");
+      const lngs = batch.map(k => k.split(",")[1]).join(",");
+      const res = await fetch(`${ELEV_URL}?latitude=${lats}&longitude=${lngs}`);
+      if (!res.ok) throw new Error(res.status === 429 ? "rate limited" : `HTTP ${res.status}`);
+      const { elevation } = await res.json();
+      batch.forEach((k, i) => elevCache.set(k, Number.isFinite(elevation[i]) ? elevation[i] : null));
+      elevMsg.textContent = "";
+      saveElevCache();
+      scheduleDraw();
+    }
+  } catch (e) {
+    elevMsg.textContent = `Elevation lookup failed (${e.message}); retrying…`;
+    retryTimer = setTimeout(pumpElevations, ELEV_RETRY_MS);
+  } finally {
+    pumping = false;
+  }
+}
+
+function updateElevation(b) {
+  if (!elevOpen) return;
+  buildSamples(b);
+  pumpElevations();
+  scheduleDraw();
+}
+
+let drawQueued = false;
+function scheduleDraw() {
+  if (!elevOpen || drawQueued) return;
+  drawQueued = true;
+  requestAnimationFrame(() => { drawQueued = false; drawChart(); });
+}
+
+function setHover(b, pt) {
+  if (!pt) { if (b.hover && map.hasLayer(b.hover)) map.removeLayer(b.hover); return; }
+  if (!b.hover) b.hover = L.circleMarker([pt.lat, pt.lng], { radius: 6, color: "#000", weight: 2, fillColor: b.color, fillOpacity: 1 });
+  b.hover.setLatLng([pt.lat, pt.lng]);
+  if (!map.hasLayer(b.hover)) b.hover.addTo(map);
+}
+
+function drawChart() {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = "11px system-ui, sans-serif";
+
+  const series = beacons.map(b => ({ b, pts: b.samples.map(s => ({ ...s, e: elevCache.get(s.key) })).filter(s => Number.isFinite(s.e)) }));
+  const known = series.flatMap(s => s.pts);
+  const M = { l: 48, r: 12, t: 12, b: 24 };
+  if (!known.length) {
+    ctx.fillStyle = "#666";
+    ctx.fillText(elevMsg.textContent ? "" : "No elevation data yet…", M.l, H / 2);
+    beacons.forEach(b => setHover(b, null));
+    return;
+  }
+
+  const maxD = Math.max(...known.map(p => p.d)) || 1;
+  const minE = Math.min(...known.map(p => p.e)), maxE = Math.max(...known.map(p => p.e));
+  const pad = Math.max(maxE - minE, 10) * 0.1;
+  const lo = minE - pad, hi = Math.max(maxE, minE + 10) + pad;
+  const x = d => M.l + (d / maxD) * (W - M.l - M.r);
+  const y = e => H - M.b - ((e - lo) / (hi - lo)) * (H - M.t - M.b);
+
+  // Grid and axis labels
+  ctx.strokeStyle = "#e3e3e3"; ctx.fillStyle = "#666"; ctx.lineWidth = 1;
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let i = 0; i <= 4; i++) {
+    const e = lo + ((hi - lo) * i) / 4;
+    ctx.beginPath(); ctx.moveTo(M.l, y(e)); ctx.lineTo(W - M.r, y(e)); ctx.stroke();
+    ctx.fillText(`${Math.round(e)} m`, M.l - 6, y(e));
+  }
+  const km = maxD / 1000;
+  const step = [0.5, 1, 2, 5, 10, 20, 50, 100, 200].find(s => km / s <= 8) || 500;
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (let t = 0; t <= km; t += step) {
+    ctx.beginPath(); ctx.moveTo(x(t * 1000), M.t); ctx.lineTo(x(t * 1000), H - M.b); ctx.stroke();
+    ctx.fillText(`${t % 1 ? t.toFixed(1) : t} km`, x(t * 1000), H - M.b + 5);
+  }
+
+  // One line per beacon. Samples that have no elevation yet leave a gap.
+  ctx.lineWidth = 2; ctx.lineJoin = "round";
+  for (const { b, pts } of series) {
+    ctx.strokeStyle = b.color;
+    ctx.beginPath();
+    let pen = false;
+    for (const s of b.samples) {
+      const e = elevCache.get(s.key);
+      if (!Number.isFinite(e)) { pen = false; continue; }
+      if (pen) ctx.lineTo(x(s.d), y(e)); else ctx.moveTo(x(s.d), y(e));
+      pen = true;
+    }
+    ctx.stroke();
+  }
+
+  // Hover: vertical guide, a dot per beacon, a tooltip, and a marker on the map.
+  if (hoverX === null || hoverX < M.l || hoverX > W - M.r) {
+    beacons.forEach(b => setHover(b, null));
+    return;
+  }
+  const d = ((hoverX - M.l) / (W - M.l - M.r)) * maxD;
+  ctx.strokeStyle = "#999"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(hoverX, M.t); ctx.lineTo(hoverX, H - M.b); ctx.stroke();
+  const lines = [];
+  for (const { b, pts } of series) {
+    if (!pts.length || d > pts[pts.length - 1].d + SAMPLE_SPACING_M) { setHover(b, null); continue; }
+    const p = pts.reduce((best, q) => (Math.abs(q.d - d) < Math.abs(best.d - d) ? q : best));
+    setHover(b, p);
+    ctx.fillStyle = b.color;
+    ctx.beginPath(); ctx.arc(x(p.d), y(p.e), 4, 0, 2 * Math.PI); ctx.fill();
+    lines.push({ color: b.color, text: `${b.name}: ${Math.round(p.e)} m at ${(p.d / 1000).toFixed(2)} km` });
+  }
+  if (lines.length) {
+    const w = Math.max(...lines.map(l => ctx.measureText(l.text).width)) + 24;
+    const h = lines.length * 16 + 8;
+    const bx = hoverX + 12 + w > W ? hoverX - 12 - w : hoverX + 12;
+    ctx.fillStyle = "rgba(255,255,255,.95)"; ctx.strokeStyle = "#bbb";
+    ctx.fillRect(bx, M.t, w, h); ctx.strokeRect(bx, M.t, w, h);
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    lines.forEach((l, i) => {
+      ctx.fillStyle = l.color; ctx.fillRect(bx + 6, M.t + 8 + i * 16 - 4, 8, 8);
+      ctx.fillStyle = "#222"; ctx.fillText(l.text, bx + 18, M.t + 8 + i * 16);
+    });
+  }
+}
+
+elevToggle.addEventListener("click", () => {
+  elevOpen = !elevOpen;
+  elevPanel.hidden = !elevOpen;
+  document.body.classList.toggle("elev-open", elevOpen);
+  elevToggle.setAttribute("aria-expanded", String(elevOpen));
+  if (elevOpen) {
+    beacons.forEach(buildSamples);
+    pumpElevations();
+    scheduleDraw();
+  } else {
+    hoverX = null;
+    beacons.forEach(b => setHover(b, null));
+  }
+});
+canvas.addEventListener("pointermove", e => { hoverX = e.offsetX; scheduleDraw(); });
+canvas.addEventListener("pointerdown", e => { hoverX = e.offsetX; scheduleDraw(); });
+canvas.addEventListener("pointerleave", () => { hoverX = null; scheduleDraw(); });
+window.addEventListener("resize", scheduleDraw);
 
 async function tick() {
   await Promise.all(beacons.filter(b => !b.done).map(refresh));
